@@ -22,7 +22,7 @@ async function bootstrap() {
 
   // CORS — permite acesso do frontend
   app.enableCors({
-    origin: configService.get('FRONTEND_URL', 'http://localhost:3000'),
+    origin: true,
     credentials: true,
   });
 
