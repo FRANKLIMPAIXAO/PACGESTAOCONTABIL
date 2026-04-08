@@ -75,28 +75,29 @@ model Office {
   updatedAt DateTime     @updatedAt
 
   // Relacionamentos
-  users            User[]
-  clients          Client[]
-  obligations      Obligation[]
+  users             User[]
+  clients           Client[]
+  obligations       Obligation[]
   clientObligations ClientObligation[]
-  tasks            Task[]
-  documents        Document[]
-  fees             Fee[]
-  notifications    Notification[]
-  auditLogs        AuditLog[]
+  tasks             Task[]
+  documents         Document[]
+  fees              Fee[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
 
   @@map("offices")
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      UserRole @default(AUXILIAR)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          UserRole @default(AUXILIAR)
+  isActive      Boolean  @default(false)
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Multi-tenancy
   officeId String
@@ -155,8 +156,8 @@ model Obligation {
   name        String
   description String?
   category    ObligationCategory
-  frequency   String             // 'MONTHLY', 'ANNUAL', etc.
-  dueDay      Int                // Dia de vencimento padrão
+  frequency   String // 'MONTHLY', 'ANNUAL', etc.
+  dueDay      Int // Dia de vencimento padrão
 
   // Multi-tenancy
   officeId String
@@ -169,14 +170,14 @@ model Obligation {
 }
 
 model ClientObligation {
-  id           String     @id @default(uuid())
-  status       String     // PENDING, COMPLETED, OVERDUE
-  lastDue      DateTime?
-  nextDue      DateTime?
-  
-  clientId     String
-  client       Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  
+  id      String    @id @default(uuid())
+  status  String // PENDING, COMPLETED, OVERDUE
+  lastDue DateTime?
+  nextDue DateTime?
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
   obligationId String
   obligation   Obligation @relation(fields: [obligationId], references: [id], onDelete: Cascade)
 
@@ -220,8 +221,8 @@ model Document {
   id        String   @id @default(uuid())
   name      String
   url       String
-  key       String   // ID no R2/S3
-  type      String   // PDF, JPG, etc.
+  key       String // ID no R2/S3
+  type      String // PDF, JPG, etc.
   size      Int
   createdAt DateTime @default(now())
 
@@ -261,7 +262,7 @@ model Fee {
 model Notification {
   id        String   @id @default(uuid())
   content   String
-  type      String   // SYSTEM, TASK_REMINDER, OBLIGATION_DUE
+  type      String // SYSTEM, TASK_REMINDER, OBLIGATION_DUE
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -276,13 +277,13 @@ model Notification {
 }
 
 model AuditLog {
-  id         String   @id @default(uuid())
-  action     String   // CREATE, UPDATE, DELETE
-  entity     String   // Nomde do model afetado
-  entityId   String
-  oldData    Json?
-  newData    Json?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(uuid())
+  action    String // CREATE, UPDATE, DELETE
+  entity    String // Nomde do model afetado
+  entityId  String
+  oldData   Json?
+  newData   Json?
+  createdAt DateTime @default(now())
 
   userId String?
   user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)

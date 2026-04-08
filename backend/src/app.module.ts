@@ -10,6 +10,7 @@ import { UsersModule } from './modules/users/users.module';
 import { OfficeModule } from './modules/office/office.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { MailModule } from './modules/mail/mail.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { RolesGuard } from './common/guards/roles.guard';
     ObligationsModule,
     UsersModule,
     OfficeModule,
+    MailModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

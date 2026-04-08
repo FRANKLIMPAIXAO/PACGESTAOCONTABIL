@@ -6,12 +6,15 @@ import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto, RegisterDto } from './dto/auth.dto';
 
+import { MailService } from '../mail/mail.service';
+
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -57,22 +60,22 @@ export class AuthService {
       return { user, office };
     });
 
-    // Gerar tokens
-    const tokens = await this.generateTokens(result.user.id, result.user.email, result.office.id, result.user.role);
+    // Gerar token de verificação de email (2 horas)
+    const verificationToken = this.jwtService.sign(
+      { sub: result.user.id, type: 'email-verification' },
+      { secret: this.configService.get('JWT_SECRET'), expiresIn: '2h' },
+    );
+
+    // Enviar E-mail em background (não travar o request vitaliciamente)
+    this.mailService.sendVerificationEmail(result.user.email, result.user.name, verificationToken)
+      .catch((err) => console.error('Erro ao disparar email Resend:', err));
 
     return {
+      message: 'Conta criada com sucesso. Verifique seu e-mail para confirmar o acesso.',
       user: {
         id: result.user.id,
-        name: result.user.name,
         email: result.user.email,
-        role: result.user.role,
-      },
-      office: {
-        id: result.office.id,
-        name: result.office.name,
-        slug: result.office.slug,
-      },
-      ...tokens,
+      }
     };
   }
 
@@ -84,6 +87,10 @@ export class AuthService {
 
     if (!user) {
       throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    if (!user.emailVerified) {
+      throw new UnauthorizedException('Você precisa confirmar seu e-mail antes de acessar. Verifique sua caixa de entrada.');
     }
 
     if (!user.isActive) {
@@ -149,6 +156,30 @@ export class AuthService {
       where: { userId },
     });
     return { message: 'Logout realizado com sucesso' };
+  }
+
+  async verifyEmail(token: string) {
+    try {
+      const decoded = this.jwtService.verify(token, {
+        secret: this.configService.get('JWT_SECRET'),
+      });
+
+      if (decoded.type !== 'email-verification') {
+        throw new UnauthorizedException('Token inválido');
+      }
+
+      await this.prisma.user.update({
+        where: { id: decoded.sub },
+        data: {
+          emailVerified: true,
+          isActive: true,
+        },
+      });
+
+      return { message: 'E-mail verificado com sucesso. Você já pode fazer login.' };
+    } catch (e) {
+      throw new UnauthorizedException('Link de verificação expirado ou inválido.');
+    }
   }
 
   private async generateTokens(userId: string, email: string, officeId: string, role: string) {
