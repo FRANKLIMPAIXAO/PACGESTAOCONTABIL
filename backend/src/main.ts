@@ -22,8 +22,10 @@ async function bootstrap() {
 
   // CORS — permite acesso do frontend
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => callback(null, true),
     credentials: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Accept, Authorization',
   });
 
   // Swagger (documentação da API)
