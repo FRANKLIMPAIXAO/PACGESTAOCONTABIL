@@ -1,0 +1,295 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- ENUMS ---
+
+enum UserRole {
+  OWNER
+  ADMIN
+  FISCAL
+  CONTABIL
+  DP
+  AUXILIAR
+}
+
+enum OfficeStatus {
+  ACTIVE
+  INACTIVE
+  TRIAL
+  SUSPENDED
+}
+
+enum ClientType {
+  PF // Pessoa Física
+  PJ // Pessoa Jurídica
+}
+
+enum ObligationCategory {
+  FISCAL
+  CONTABIL
+  TRABALHISTA
+  PREVIDENCIARIA
+  MUNICIPAL
+  OUTROS
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  DOING
+  REVIEW
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum FeeStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// --- MODELS ---
+
+model Office {
+  id        String       @id @default(uuid())
+  name      String
+  slug      String       @unique
+  cnpj      String?      @unique
+  status    OfficeStatus @default(TRIAL)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  // Relacionamentos
+  users            User[]
+  clients          Client[]
+  obligations      Obligation[]
+  clientObligations ClientObligation[]
+  tasks            Task[]
+  documents        Document[]
+  fees             Fee[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+
+  @@map("offices")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(AUXILIAR)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Multi-tenancy
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  // Relacionamentos
+  assignedTasks Task[]         @relation("AssignedUser")
+  createdTasks  Task[]         @relation("CreatedUser")
+  documents     Document[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  refreshTokens RefreshToken[]
+
+  @@index([officeId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+model Client {
+  id        String     @id @default(uuid())
+  name      String
+  email     String?
+  phone     String?
+  document  String     @unique // CPF ou CNPJ
+  type      ClientType @default(PJ)
+  isActive  Boolean    @default(true)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  // Multi-tenancy
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  // Relacionamentos
+  obligations ClientObligation[]
+  tasks       Task[]
+  documents   Document[]
+  fees        Fee[]
+
+  @@index([officeId])
+  @@map("clients")
+}
+
+model Obligation {
+  id          String             @id @default(uuid())
+  name        String
+  description String?
+  category    ObligationCategory
+  frequency   String             // 'MONTHLY', 'ANNUAL', etc.
+  dueDay      Int                // Dia de vencimento padrão
+
+  // Multi-tenancy
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  clients ClientObligation[]
+
+  @@index([officeId])
+  @@map("obligations")
+}
+
+model ClientObligation {
+  id           String     @id @default(uuid())
+  status       String     // PENDING, COMPLETED, OVERDUE
+  lastDue      DateTime?
+  nextDue      DateTime?
+  
+  clientId     String
+  client       Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  obligationId String
+  obligation   Obligation @relation(fields: [obligationId], references: [id], onDelete: Cascade)
+
+  // Multi-tenancy
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  @@index([officeId, clientId])
+  @@map("client_obligations")
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relacionamentos
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  assignedToId String?
+  assignedTo   User?   @relation("AssignedUser", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  createdById String
+  createdBy   User   @relation("CreatedUser", fields: [createdById], references: [id])
+
+  // Multi-tenancy
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  @@index([officeId, status])
+  @@map("tasks")
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  name      String
+  url       String
+  key       String   // ID no R2/S3
+  type      String   // PDF, JPG, etc.
+  size      Int
+  createdAt DateTime @default(now())
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // Multi-tenancy
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  @@index([officeId, clientId])
+  @@map("documents")
+}
+
+model Fee {
+  id          String    @id @default(uuid())
+  amount      Decimal   @db.Decimal(10, 2)
+  dueDate     DateTime
+  paidAt      DateTime?
+  status      FeeStatus @default(PENDING)
+  description String?
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+
+  // Multi-tenancy
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  @@index([officeId, status])
+  @@map("fees")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  content   String
+  type      String   // SYSTEM, TASK_REMINDER, OBLIGATION_DUE
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String   // CREATE, UPDATE, DELETE
+  entity     String   // Nomde do model afetado
+  entityId   String
+  oldData    Json?
+  newData    Json?
+  createdAt  DateTime @default(now())
+
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  officeId String
+  office   Office @relation(fields: [officeId], references: [id], onDelete: Cascade)
+
+  @@index([officeId, createdAt])
+  @@map("audit_logs")
+}
