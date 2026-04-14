@@ -94,10 +94,12 @@ model User {
   password      String
   name          String
   role          UserRole @default(AUXILIAR)
-  isActive      Boolean  @default(false)
-  emailVerified Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  isActive          Boolean   @default(false)
+  emailVerified     Boolean   @default(false)
+  resetToken        String?
+  resetTokenExpires DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Multi-tenancy
   officeId String

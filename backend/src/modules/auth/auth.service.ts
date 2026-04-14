@@ -2,9 +2,10 @@ import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { PrismaService } from '../../prisma/prisma.service';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 
 import { MailService } from '../mail/mail.service';
 
@@ -204,6 +205,65 @@ export class AuthService {
     } catch (e) {
       throw new UnauthorizedException('Link de verificação expirado ou inválido.');
     }
+  }
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const normalizedEmail = dto.email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      return { message: 'Se o e-mail estiver cadastrado, você receberá um link de redefinição.' };
+    }
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken: hashedToken,
+        resetTokenExpires: expiresAt,
+      },
+    });
+
+    this.mailService.sendPasswordResetEmail(user.email, user.name, rawToken)
+      .catch((err) => console.error('Erro ao enviar email de reset:', err));
+
+    return { message: 'Se o e-mail estiver cadastrado, você receberá um link de redefinição.' };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const { token, newPassword } = dto;
+    
+    // Calcula o hash local do token recebido para bater com o do banco
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    
+    const user = await this.prisma.user.findFirst({
+      where: {
+        resetToken: hashedToken,
+        resetTokenExpires: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Link de redefinição inválido ou expirado. Solicite novamente.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpires: null,
+      },
+    });
+
+    return { message: 'Senha redefinida com sucesso. Você já pode fazer login.' };
   }
 
   private async generateTokens(userId: string, email: string, officeId: string, role: string) {

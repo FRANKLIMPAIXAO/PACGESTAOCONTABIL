@@ -119,7 +119,10 @@ function LoginForm() {
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ fontSize: 12, color: "#64748b", display: "block", marginBottom: 6, fontWeight: 600 }}>Senha</label>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <label style={{ fontSize: 12, color: "#64748b", fontWeight: 600 }}>Senha</label>
+                <Link href="/forgot-password" style={{ fontSize: 11, color: "#10b981", textDecoration: "none", fontWeight: 600 }}>Esqueceu a senha?</Link>
+              </div>
               <div style={{ position: "relative" }}>
                 <Lock size={14} color="#475569" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }} />
                 <input

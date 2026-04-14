@@ -1,7 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, RefreshTokenDto, ResendVerificationEmailDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, RefreshTokenDto, ResendVerificationEmailDto, ForgotPasswordDto, ResetPasswordDto } from './dto/auth.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -54,5 +54,21 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout — invalida todos os refresh tokens do usuário' })
   async logout(@CurrentUser('userId') userId: string) {
     return this.authService.logout(userId);
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Solicitar redefinição de senha' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Redefinir senha usando token' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
   }
 }

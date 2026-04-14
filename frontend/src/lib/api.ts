@@ -4,6 +4,8 @@ const isPublicAuthPath = (path: string) =>
   path === '/auth/login' ||
   path === '/auth/register' ||
   path === '/auth/refresh' ||
+  path === '/auth/forgot-password' ||
+  path === '/auth/reset-password' ||
   path.startsWith('/auth/verify-email');
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
@@ -84,6 +86,12 @@ export const authApi = {
 
   resendVerificationEmail: (email: string) =>
     apiFetch('/auth/resend-verification-email', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  forgotPassword: (email: string) =>
+    apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) }),
 };
 
 // ── Clientes ─────────────────────────────────────────────────────────────────

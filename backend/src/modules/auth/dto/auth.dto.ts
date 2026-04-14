@@ -45,3 +45,21 @@ export class ResendVerificationEmailDto {
   @IsEmail({}, { message: 'E-mail inválido' })
   email: string;
 }
+
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'admin@pacgestao.com.br' })
+  @IsEmail({}, { message: 'E-mail inválido' })
+  email: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty({ message: 'Token é obrigatório' })
+  token: string;
+
+  @ApiProperty({ example: 'SenhaForte@123' })
+  @IsString()
+  @MinLength(6, { message: 'Senha nova deve ter no mínimo 6 caracteres' })
+  newPassword: string;
+}
