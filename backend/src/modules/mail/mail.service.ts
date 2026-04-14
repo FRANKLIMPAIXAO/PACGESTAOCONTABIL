@@ -18,8 +18,10 @@ export class MailService {
   async sendVerificationEmail(email: string, name: string, token: string) {
     // Essa é a URL do frontend que chamará nossa API ou podemos linkar direto para a API temporariamente
     // Como a pergunta não foi confirmada pelo user, farei apontar direto para a API e a API redireciona ou dá json "Email verificado".
-    const apiUrl = this.configService.get<string>('NEXT_PUBLIC_API_URL') || 'http://localhost:3000/api';
-    const verifyUrl = `${apiUrl}/auth/verify-email?token=${token}`;
+    const frontendUrl =
+      this.configService.get<string>('FRONTEND_URL') ||
+      'http://localhost:3000';
+    const verifyUrl = `${frontendUrl.replace(/\/$/, '')}/verify-email?token=${token}`;
     const fromEmail = 'Contato PAC Gestão <contato@pacgestao.com.br>'; // Resposta do usuário.
 
     const htmlContent = `
@@ -42,9 +44,13 @@ export class MailService {
       </div>
     `;
 
+    const effectiveFromEmail =
+      this.configService.get<string>('MAIL_FROM') ||
+      fromEmail;
+
     try {
       const data = await this.resend.emails.send({
-        from: fromEmail,
+        from: effectiveFromEmail,
         to: email,
         subject: 'Confirme seu acesso ao PAC Gestão',
         html: htmlContent,

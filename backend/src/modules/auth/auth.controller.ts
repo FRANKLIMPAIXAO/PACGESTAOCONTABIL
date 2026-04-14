@@ -1,7 +1,7 @@
 import { Controller, Post, Body, HttpCode, HttpStatus, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { LoginDto, RegisterDto, RefreshTokenDto } from './dto/auth.dto';
+import { LoginDto, RegisterDto, RefreshTokenDto, ResendVerificationEmailDto } from './dto/auth.dto';
 import { Public } from '../../common/decorators/public.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 
@@ -30,6 +30,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Verifica a conta de usuário usando um token enviado por email' })
   async verifyEmail(@Query('token') token: string) {
     return this.authService.verifyEmail(token);
+  }
+
+  @Public()
+  @Post('resend-verification-email')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reenviar e-mail de confirmaÃ§Ã£o de acesso' })
+  async resendVerificationEmail(@Body() dto: ResendVerificationEmailDto) {
+    return this.authService.resendVerificationEmail(dto.email);
   }
 
   @Public()

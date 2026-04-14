@@ -1,20 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
-import { Mail, Lock, AlertCircle, Loader2 } from "lucide-react";
+import { Mail, Lock, AlertCircle, Loader2, CheckCircle, RefreshCw } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { authApi } from "@/lib/api";
 
-export default function LoginPage() {
+const EMAIL_NOT_VERIFIED_MSG = "Você precisa confirmar seu e-mail antes de acessar.";
+
+function LoginForm() {
   const { login } = useAuth();
+  const searchParams = useSearchParams();
+  const registered = searchParams.get("registered") === "1";
+  const verified = searchParams.get("verified") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMsg, setResendMsg] = useState("");
+
+  const needsVerification = error.includes("confirmar seu e-mail");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setResendMsg("");
     setLoading(true);
     try {
       await login(email, password);
@@ -22,6 +34,21 @@ export default function LoginPage() {
       setError(err.message ?? "Credenciais inválidas");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResend = async () => {
+    if (!email) { setError("Informe o e-mail acima antes de reenviar."); return; }
+    setResendLoading(true);
+    setResendMsg("");
+    try {
+      const data = await authApi.resendVerificationEmail(email);
+      setResendMsg(data.message ?? "E-mail reenviado! Verifique sua caixa de entrada e spam.");
+      setError("");
+    } catch (err: any) {
+      setResendMsg(err.message ?? "Erro ao reenviar. Tente novamente.");
+    } finally {
+      setResendLoading(false);
     }
   };
 
@@ -39,10 +66,42 @@ export default function LoginPage() {
 
         {/* Card */}
         <div style={{ background: "#111827", border: "1px solid #1e293b", borderRadius: 16, padding: 32 }}>
+          {registered && (
+            <div style={{ background: "#10b98115", border: "1px solid #10b98140", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 20 }}>
+              <CheckCircle size={15} color="#10b981" style={{ marginTop: 1, flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: "#6ee7b7" }}>
+                Conta criada! Enviamos um e-mail de confirmação. Verifique sua caixa de entrada (e a pasta de spam) antes de fazer login.
+              </span>
+            </div>
+          )}
+          {verified && (
+            <div style={{ background: "#10b98115", border: "1px solid #10b98140", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+              <CheckCircle size={15} color="#10b981" />
+              <span style={{ fontSize: 13, color: "#6ee7b7" }}>E-mail verificado! Você já pode fazer login.</span>
+            </div>
+          )}
           {error && (
-            <div style={{ background: "#ef444415", border: "1px solid #ef444440", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
-              <AlertCircle size={15} color="#ef4444" />
-              <span style={{ fontSize: 13, color: "#fca5a5" }}>{error}</span>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ background: "#ef444415", border: "1px solid #ef444440", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+                <AlertCircle size={15} color="#ef4444" style={{ marginTop: 1, flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: "#fca5a5" }}>{error}</span>
+              </div>
+              {needsVerification && (
+                <button
+                  onClick={handleResend} disabled={resendLoading} type="button"
+                  style={{ marginTop: 8, width: "100%", background: "transparent", border: "1px solid #334155", borderRadius: 8, padding: "9px 0", fontSize: 13, color: "#94a3b8", cursor: resendLoading ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                >
+                  {resendLoading
+                    ? <><Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Reenviando...</>
+                    : <><RefreshCw size={14} /> Reenviar e-mail de confirmação</>}
+                </button>
+              )}
+            </div>
+          )}
+          {resendMsg && (
+            <div style={{ background: "#10b98115", border: "1px solid #10b98140", borderRadius: 8, padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, marginBottom: 20 }}>
+              <CheckCircle size={15} color="#10b981" />
+              <span style={{ fontSize: 13, color: "#6ee7b7" }}>{resendMsg}</span>
             </div>
           )}
 
@@ -94,5 +153,13 @@ export default function LoginPage() {
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

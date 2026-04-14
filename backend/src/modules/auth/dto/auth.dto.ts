@@ -39,3 +39,9 @@ export class RefreshTokenDto {
   @IsNotEmpty()
   refreshToken: string;
 }
+
+export class ResendVerificationEmailDto {
+  @ApiProperty({ example: 'admin@pacgestao.com.br' })
+  @IsEmail({}, { message: 'E-mail inválido' })
+  email: string;
+}

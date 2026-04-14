@@ -17,6 +17,13 @@ export class AuthService {
     private mailService: MailService,
   ) {}
 
+  private createEmailVerificationToken(userId: string) {
+    return this.jwtService.sign(
+      { sub: userId, type: 'email-verification' },
+      { secret: this.configService.get('JWT_SECRET'), expiresIn: '2h' },
+    );
+  }
+
   async register(dto: RegisterDto) {
     // Verificar se o e-mail já existe
     const existingUser = await this.prisma.user.findUnique({
@@ -61,10 +68,7 @@ export class AuthService {
     });
 
     // Gerar token de verificação de email (2 horas)
-    const verificationToken = this.jwtService.sign(
-      { sub: result.user.id, type: 'email-verification' },
-      { secret: this.configService.get('JWT_SECRET'), expiresIn: '2h' },
-    );
+    const verificationToken = this.createEmailVerificationToken(result.user.id);
 
     // Enviar E-mail em background (não travar o request vitaliciamente)
     this.mailService.sendVerificationEmail(result.user.email, result.user.name, verificationToken)
@@ -90,7 +94,7 @@ export class AuthService {
     }
 
     if (!user.emailVerified) {
-      throw new UnauthorizedException('Você precisa confirmar seu e-mail antes de acessar. Verifique sua caixa de entrada.');
+      throw new UnauthorizedException('Você precisa confirmar seu e-mail para fazer login.');
     }
 
     if (!user.isActive) {
@@ -156,6 +160,26 @@ export class AuthService {
       where: { userId },
     });
     return { message: 'Logout realizado com sucesso' };
+  }
+
+  async resendVerificationEmail(email: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+    });
+
+    if (!user) {
+      return { message: 'Se existir uma conta pendente para este e-mail, enviaremos uma nova confirmação.' };
+    }
+
+    if (user.emailVerified) {
+      return { message: 'Este e-mail já foi confirmado. Você já pode acessar o sistema.' };
+    }
+
+    const verificationToken = this.createEmailVerificationToken(user.id);
+    await this.mailService.sendVerificationEmail(user.email, user.name, verificationToken);
+
+    return { message: 'Enviamos um novo e-mail de confirmação. Verifique sua caixa de entrada e spam.' };
   }
 
   async verifyEmail(token: string) {

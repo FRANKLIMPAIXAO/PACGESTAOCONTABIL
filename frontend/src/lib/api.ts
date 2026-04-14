@@ -1,5 +1,11 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api';
 
+const isPublicAuthPath = (path: string) =>
+  path === '/auth/login' ||
+  path === '/auth/register' ||
+  path === '/auth/refresh' ||
+  path.startsWith('/auth/verify-email');
+
 // ── Token helpers ─────────────────────────────────────────────────────────────
 export const getAccessToken = () => (typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null);
 export const getRefreshToken = () => (typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null);
@@ -37,7 +43,7 @@ export async function apiFetch<T = any>(path: string, options: RequestInit = {})
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token && !isPublicAuthPath(path)) headers['Authorization'] = `Bearer ${token}`;
     return fetch(`${API_URL}${path}`, { ...options, headers });
   };
 
@@ -45,7 +51,7 @@ export async function apiFetch<T = any>(path: string, options: RequestInit = {})
   let res = await makeRequest(token);
 
   // Token expirado — tenta refresh uma vez
-  if (res.status === 401) {
+  if (res.status === 401 && token && !isPublicAuthPath(path)) {
     token = await tryRefresh();
     if (!token) {
       clearTokens();
@@ -75,6 +81,9 @@ export const authApi = {
   logout: () => apiFetch('/auth/logout', { method: 'POST' }),
 
   me: () => apiFetch('/users/me'),
+
+  resendVerificationEmail: (email: string) =>
+    apiFetch('/auth/resend-verification-email', { method: 'POST', body: JSON.stringify({ email }) }),
 };
 
 // ── Clientes ─────────────────────────────────────────────────────────────────

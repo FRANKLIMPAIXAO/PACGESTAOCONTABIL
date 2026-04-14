@@ -37,7 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Restaura sessão ao carregar a página
   useEffect(() => {
     const token = getAccessToken();
-    if (!token) { setLoading(false); return; }
+    // Rejeita tokens inválidos (null, "undefined", "null") sem fazer request
+    if (!token || token === 'undefined' || token === 'null') {
+      clearTokens();
+      setLoading(false);
+      return;
+    }
     authApi.me()
       .then((data: any) => setUser(data))
       .catch(() => clearTokens())
@@ -53,11 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const register = useCallback(async (form: { name: string; email: string; password: string; officeName: string }) => {
-    const data = await authApi.register(form);
-    setTokens(data.accessToken, data.refreshToken);
-    setUser(data.user);
-    setOffice(data.office);
-    router.push("/dashboard");
+    await authApi.register(form);
+    // Cadastro requer verificação de e-mail — sem tokens ainda
+    router.push("/login?registered=1");
   }, [router]);
 
   const logout = useCallback(async () => {
