@@ -60,6 +60,8 @@ export class MailService {
       this.logger.error(`Falha ao enviar e-mail para ${email}:`, error);
       throw error;
     }
+  }
+
   async sendPasswordResetEmail(email: string, name: string, token: string) {
     const frontendUrl =
       this.configService.get<string>('FRONTEND_URL') ||
