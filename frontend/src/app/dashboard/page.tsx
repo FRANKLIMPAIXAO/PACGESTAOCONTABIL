@@ -235,8 +235,10 @@ export default function ContabilidadeApp() {
   const [clienteDetalhe, setClienteDetalhe] = useState<ClientUI | null>(null);
   const [showAddOb, setShowAddOb] = useState(false);
   const [showAddTask, setShowAddTask] = useState(false);
+  const [showAddClient, setShowAddClient] = useState(false);
   const [newOb, setNewOb] = useState({ nome: "", clienteId: "", tipo: "FISCAL", dueDay: "20" });
   const [newTask, setNewTask] = useState({ titulo: "", clienteId: "", vence: "", prioridade: "MEDIUM", assignedToId: "" });
+  const [newClient, setNewClient] = useState({ name: "", document: "", type: "PJ", email: "", phone: "" });
   const [saving, setSaving] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -354,6 +356,29 @@ export default function ContabilidadeApp() {
       await tasksApi.updateStatus(id, mapTaskStatusReverse(newStatus));
     } catch {
       await loadAll();
+    }
+  };
+  const saveClient = async () => {
+    if (!newClient.name || !newClient.document) {
+      alert("Nome e Documento são obrigatórios.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await clientsApi.create({
+        name: newClient.name,
+        document: newClient.document,
+        type: newClient.type,
+        ...(newClient.email && { email: newClient.email }),
+        ...(newClient.phone && { phone: newClient.phone })
+      });
+      await loadAll();
+      setNewClient({ name: "", document: "", type: "PJ", email: "", phone: "" });
+      setShowAddClient(false);
+    } catch (err: any) {
+      alert(err?.message ?? "Erro ao cadastrar cliente");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -874,7 +899,7 @@ export default function ContabilidadeApp() {
               <input value={searchQ} onChange={e => setSearchQ(e.target.value)} placeholder="Buscar..." style={{ ...S.input, paddingLeft: 30, width: 180 }} />
             </div>
             <button style={S.btnOutline} onClick={loadAll}><RefreshCw size={14} /></button>
-            <button style={S.btn()} onClick={() => alert("Cadastro de clientes em breve")}><Plus size={15} /> Novo Cliente</button>
+            <button style={S.btn()} onClick={() => setShowAddClient(true)}><Plus size={15} /> Novo Cliente</button>
           </div>
         </div>
 
@@ -904,6 +929,46 @@ export default function ContabilidadeApp() {
               ))}
             </div>
         }
+
+        {showAddClient && (
+          <div style={{ position: "fixed", inset: 0, background: "#000a", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+            <div style={{ background: "#111827", border: "1px solid #1e293b", borderRadius: 16, padding: 28, width: 440 }}>
+              <div style={{ ...S.row, justifyContent: "space-between", marginBottom: 20 }}>
+                <div style={{ fontWeight: 700, fontSize: 16, color: "#f1f5f9" }}>Novo Cliente</div>
+                <button onClick={() => setShowAddClient(false)} style={{ background: "none", border: "none", color: "#475569", cursor: "pointer" }}><X size={18} /></button>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={S.label}>Tipo de Cliente</label>
+                <select value={newClient.type} onChange={e => setNewClient(p => ({ ...p, type: e.target.value }))} style={{ ...S.input }}>
+                  <option value="PJ">Pessoa Jurídica (PJ)</option>
+                  <option value="PF">Pessoa Física (PF)</option>
+                </select>
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={S.label}>Nome ou Razão Social</label>
+                <input placeholder="Nome Completo / Empresa" value={newClient.name} onChange={e => setNewClient(p => ({ ...p, name: e.target.value }))} style={S.input} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={S.label}>{newClient.type === "PJ" ? "CNPJ" : "CPF"}</label>
+                <input placeholder={newClient.type === "PJ" ? "00.000.000/0000-00" : "000.000.000-00"} value={newClient.document} onChange={e => setNewClient(p => ({ ...p, document: e.target.value }))} style={S.input} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={S.label}>E-mail (opcional)</label>
+                <input type="email" placeholder="contato@cliente.com" value={newClient.email} onChange={e => setNewClient(p => ({ ...p, email: e.target.value }))} style={S.input} />
+              </div>
+              <div style={{ marginBottom: 20 }}>
+                <label style={S.label}>Telefone (opcional)</label>
+                <input placeholder="(00) 00000-0000" value={newClient.phone} onChange={e => setNewClient(p => ({ ...p, phone: e.target.value }))} style={S.input} />
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setShowAddClient(false)} style={{ ...S.btnOutline, flex: 1, justifyContent: "center" }}>Cancelar</button>
+                <button onClick={saveClient} disabled={saving} style={{ ...S.btn(), flex: 1, justifyContent: "center" }}>
+                  {saving ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> : "Cadastrar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   };
